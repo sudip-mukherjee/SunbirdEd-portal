@@ -6,7 +6,7 @@ import {
   BrowserCacheTtlService
 } from '@sunbird/shared';
 import { Observable, BehaviorSubject, of } from 'rxjs';
-import { skipWhile, mergeMap, tap } from 'rxjs/operators';
+import { skipWhile, mergeMap, map, tap } from 'rxjs/operators';
 import { PublicDataService } from './../public-data/public-data.service';
 import * as _ from 'lodash-es';
 import { CacheService } from 'ng2-cache-service';
@@ -16,6 +16,7 @@ const frameWorkPrefix = 'framework_';
 })
 export class FrameworkService {
   private _frameworkData: FrameworkData = {};
+  private _defaultCourseFrameworkName = '';
   private _channelData: any = {};
   private _frameworkData$ = new BehaviorSubject<Framework>(undefined);
   private _channelData$ = new BehaviorSubject<any>(undefined);
@@ -56,12 +57,12 @@ export class FrameworkService {
           });
       } else {
         if (!_.get(this._frameworkData, 'defaultFramework')) {
-          this.getDefaultFrameWork(hashTagId ? hashTagId : this.userService.hashTagId)
+          this.getChannel(hashTagId ? hashTagId : this.userService.hashTagId)
             .pipe(mergeMap(data => {
               this.setChannelData(hashTagId ? hashTagId : this.userService.hashTagId, data);
               this._channelData = data.result.channel;
               this._channelData$.next({ err: null, channelData: this._channelData });
-             return this.getFrameworkCategories(_.get(data, 'result.channel.defaultFramework'));
+              return this.getFrameworkCategories(_.get(data, 'result.channel.defaultFramework'));
             })).subscribe(
               (frameworkData: ServerResponse) => {
                this.setFrameWorkData(frameworkData);
@@ -76,7 +77,7 @@ export class FrameworkService {
       }
     }
   }
-  private getDefaultFrameWork(hashTagId) {
+  private getChannel(hashTagId) {
     const channelOptions = {
       url: this.configService.urlConFig.URLS.CHANNEL.READ + '/' + hashTagId
     };
@@ -118,4 +119,22 @@ export class FrameworkService {
     return _.get(this._channelData, 'defaultLicense');
   }
 
+  /**
+   * @param  {string} hashTagId - user channel ID
+   * @returns - default course framework (TPD or custom framework of the tenant )
+   */
+  public getDefaultCourseFramework(hashTagId?: string) {
+    const cachedDefaultCourseFramework = this.cacheService.get('defaultCourseFramework');
+    if (cachedDefaultCourseFramework) {
+      return of(cachedDefaultCourseFramework);
+    } else {
+      const userHashTagId = hashTagId ? hashTagId : this.userService.hashTagId;
+      return this.getChannel(userHashTagId).pipe(map (channelData => {
+        this._defaultCourseFrameworkName = _.get(channelData, 'result.channel.defaultCourseFramework');
+        this.cacheService.set('defaultCourseFramework', this._defaultCourseFrameworkName,
+          { maxAge: this.browserCacheTtlService.browserCacheTtl });
+        return this._defaultCourseFrameworkName;
+      }));
+    }
+  }
 }

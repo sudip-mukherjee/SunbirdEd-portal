@@ -347,21 +347,14 @@ export class DataDrivenComponent extends WorkSpace implements OnInit, OnDestroy,
     });
   }
   /**
-  * fetchCourseFrameworkId (i.e TPD)
+  * fetchCourseFrameworkId (i.e TPD or any custom framework)
   */
   getCourseFrameworkId() {
-    const framework = this._cacheService.get('course' + 'framework');
+    const framework = this.frameworkService.getDefaultCourseFramework();
     if (framework) {
-      return of(framework);
+      return framework;
     } else {
-     return this.frameworkService.getCourseFramework()
-        .pipe(map((data) => {
-          const frameWork = _.get(data.result.response , 'value');
-          this._cacheService.set('course' + 'framework', frameWork, { maxAge: this.browserCacheTtlService.browserCacheTtl });
-          return frameWork;
-        }), catchError((error) => {
-          return of(false);
-        }));
+      return of(false);
     }
   }
 }
